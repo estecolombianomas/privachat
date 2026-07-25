@@ -324,6 +324,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let selectedSuggestionIndex = -1;
 
   const showSuggestions = (matches) => {
+    if (!DOM.mentionSuggestions) return;
     suggestionMatches = matches;
     selectedSuggestionIndex = 0;
     
@@ -358,8 +359,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const hideSuggestions = () => {
     suggestionMatches = [];
     selectedSuggestionIndex = -1;
-    DOM.mentionSuggestions.innerHTML = '';
-    DOM.mentionSuggestions.classList.remove('active');
+    if (DOM.mentionSuggestions) {
+      DOM.mentionSuggestions.innerHTML = '';
+      DOM.mentionSuggestions.classList.remove('active');
+    }
   };
 
   const selectSuggestion = (nickname) => {
