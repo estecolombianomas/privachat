@@ -333,12 +333,16 @@ window.addEventListener('DOMContentLoaded', () => {
       item.className = `suggestion-item ${idx === 0 ? 'active' : ''}`;
       item.innerHTML = `
         <img class="suggestion-avatar" src="${user.avatar}" alt="${user.nickname}">
-        <span class="suggestion-nickname">${user.nickname}</span>
+        <span class="suggestion-nickname">@${user.nickname}</span>
       `;
       
-      item.addEventListener('click', () => {
+      const handleSelect = (e) => {
+        e.preventDefault();
         selectSuggestion(user.nickname);
-      });
+      };
+
+      item.addEventListener('mousedown', handleSelect);
+      item.addEventListener('touchstart', handleSelect);
       
       DOM.mentionSuggestions.appendChild(item);
     });
@@ -355,21 +359,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const selectSuggestion = (nickname) => {
     const text = DOM.messageInput.value;
-    const cursor = DOM.messageInput.selectionStart;
+    const cursor = DOM.messageInput.selectionStart || text.length;
     const textBeforeCursor = text.slice(0, cursor);
-    const words = textBeforeCursor.split(/\s/);
-    const lastWord = words[words.length - 1] || '';
+    const atIndex = textBeforeCursor.lastIndexOf('@');
     
-    const beforeWord = textBeforeCursor.slice(0, textBeforeCursor.length - lastWord.length);
-    const afterWord = text.slice(cursor);
-    
-    DOM.messageInput.value = beforeWord + `@${nickname} ` + afterWord;
-    hideSuggestions();
-    
-    // Enfocar y colocar cursor después del nickname insertado
-    const newCursor = beforeWord.length + nickname.length + 2; // @ + espacio
-    DOM.messageInput.focus();
-    DOM.messageInput.setSelectionRange(newCursor, newCursor);
+    if (atIndex !== -1) {
+      const textBeforeAt = text.slice(0, atIndex);
+      const textAfterCursor = text.slice(cursor);
+      
+      DOM.messageInput.value = textBeforeAt + `@${nickname} ` + textAfterCursor;
+      hideSuggestions();
+      
+      const newCursorPos = atIndex + nickname.length + 2; // '@' + nickname + ' '
+      DOM.messageInput.focus();
+      DOM.messageInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
   };
 
   const updateActiveSuggestionItem = () => {
@@ -555,23 +559,29 @@ window.addEventListener('DOMContentLoaded', () => {
       sendTypingStatus(false);
     }, 2500); // Detener estado si no escribe en 2.5 seg
 
-    // Autocompletado con @
+    // Autocompletado con @ para los integrantes en línea
     const text = DOM.messageInput.value;
-    const cursor = DOM.messageInput.selectionStart;
+    const cursor = DOM.messageInput.selectionStart || text.length;
     const textBeforeCursor = text.slice(0, cursor);
-    const words = textBeforeCursor.split(/\s/);
-    const lastWord = words[words.length - 1] || '';
+    const atIndex = textBeforeCursor.lastIndexOf('@');
     
-    if (lastWord.startsWith('@')) {
-      const query = lastWord.slice(1).toLowerCase();
-      // Filtrar usuarios activos menos yo
-      const matches = engine.onlineUsers.filter(u => 
-        u.nickname !== engine.nickname && 
-        u.nickname.toLowerCase().startsWith(query)
-      );
-      
-      if (matches.length > 0) {
-        showSuggestions(matches);
+    if (atIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(atIndex + 1);
+      // Solo sugerir si no hay espacios entre el @ y la palabra actual
+      if (!/\s/.test(textAfterAt)) {
+        const query = textAfterAt.toLowerCase();
+        
+        // Filtrar integrantes conectados excepto yo
+        const matches = engine.onlineUsers.filter(u => 
+          u.nickname !== engine.nickname && 
+          u.nickname.toLowerCase().startsWith(query)
+        );
+        
+        if (matches.length > 0) {
+          showSuggestions(matches);
+        } else {
+          hideSuggestions();
+        }
       } else {
         hideSuggestions();
       }
