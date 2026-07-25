@@ -115,6 +115,11 @@ if (!sidebarOverlay) {
 engine.addEventListener('status_change', (e) => {
   const status = e.detail;
   updateConnectionUI(status);
+  
+  // Si nos acabamos de conectar y hay un nickname tipeado en el formulario de login, re-verificarlo inmediatamente
+  if (status === 'CONNECTED' && DOM.nicknameInput && DOM.nicknameInput.value.trim()) {
+    engine.checkNickname(DOM.nicknameInput.value.trim());
+  }
 });
 
 // Verificación de nickname único
@@ -391,15 +396,21 @@ window.addEventListener('DOMContentLoaded', () => {
     checkNicknameTimeout = setTimeout(() => {
       if (engine.status === 'CONNECTED') {
         engine.checkNickname(val);
+      } else if (engine.status === 'CONNECTING') {
+        DOM.nicknameStatusIndicator.innerHTML = '<i data-lucide="loader" class="animate-spin text-warning"></i>';
+        DOM.nicknameFeedback.innerText = 'Conectando con el servidor...';
+        DOM.nicknameFeedback.className = 'feedback-text loading';
+        DOM.btnEnterChat.disabled = false;
+        initLucide();
       } else {
         // Fallback si no hay conexión al servidor todavía
         DOM.nicknameStatusIndicator.innerHTML = '<i data-lucide="alert-triangle" class="text-warning"></i>';
-        DOM.nicknameFeedback.innerText = 'Desconectado del servidor de validación';
+        DOM.nicknameFeedback.innerText = 'Sin conexión con el servidor (Reintentando...)';
         DOM.nicknameFeedback.className = 'feedback-text error';
-        DOM.btnEnterChat.disabled = false; // Permitir de todas formas, revalidará al unirse
+        DOM.btnEnterChat.disabled = false; // Permitir de todas formas
         initLucide();
       }
-    }, 4500000 ? 400 : 400); // 400ms
+    }, 400);
   });
 
   // Generar avatar aleatorio en el botón de random

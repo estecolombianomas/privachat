@@ -12,6 +12,7 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, 'public')));
@@ -267,6 +268,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor de PrivaChat ejecutándose en http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Servidor de PrivaChat ejecutándose en http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
 });

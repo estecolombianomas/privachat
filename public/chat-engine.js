@@ -1,8 +1,6 @@
-/**
- * Motor de comunicación WebSocket y almacenamiento para PrivaChat.
- * Gestiona el ciclo de vida de la conexión, reintentos de reconexión,
- * envío de mensajes (con imágenes), y almacenamiento local (efímero vs persistente).
- */
+// Si deseas forzar un servidor backend específico para WebSockets (ej: 'midominio.com' o 'backend.midominio.com'), ponlo aquí.
+// Si se deja nulo (null), detectará automáticamente el host actual.
+const CUSTOM_BACKEND_HOST = null;
 
 export class ChatEngine extends EventTarget {
   constructor() {
@@ -148,10 +146,10 @@ export class ChatEngine extends EventTarget {
     
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // Si estás en GitHub Pages, conéctate a tu servidor de WebSockets desplegado externamente
-    let backendHost = window.location.host;
-    if (window.location.hostname.endsWith('github.io') || window.location.hostname.endsWith('github.dev')) {
-      backendHost = 'privachat-backend.onrender.com'; // <-- REEMPLAZAR con tu dominio de backend desplegado (en Render, Railway, etc.)
+    // Si tienes un CUSTOM_BACKEND_HOST lo usa, si no, usa el host actual o GitHub Pages fallback
+    let backendHost = CUSTOM_BACKEND_HOST || window.location.host;
+    if (!CUSTOM_BACKEND_HOST && (window.location.hostname.endsWith('github.io') || window.location.hostname.endsWith('github.dev'))) {
+      backendHost = 'privachat-backend.onrender.com';
     }
     
     const wsUrl = `${wsProtocol}//${backendHost}`;
