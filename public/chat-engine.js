@@ -1,6 +1,12 @@
-// Si deseas forzar un servidor backend específico para WebSockets (ej: 'midominio.com' o 'backend.midominio.com'), ponlo aquí.
-// Si se deja nulo (null), detectará automáticamente el host actual.
-const CUSTOM_BACKEND_HOST = null;
+// ==============================================================================
+// CONFIGURACIÓN DEL SERVIDOR WEBSOCKET EN EL FRONTEND
+// ==============================================================================
+// Si deseas forzar un host/dominio específico (ej: 'midominio.com' o '192.168.0.107'), ponlo aquí.
+// Si deseas forzar un puerto específico (ej: '3333' o '8080'), ponlo aquí.
+// Si los dejas en null, se detectarán automáticamente según el entorno.
+export const CUSTOM_BACKEND_HOST = null; // Ej: 'tu-backend.onrender.com' o '192.168.0.107'
+export const CUSTOM_BACKEND_PORT = null; // Ej: '3333'
+// ==============================================================================
 
 export class ChatEngine extends EventTarget {
   constructor() {
@@ -146,9 +152,15 @@ export class ChatEngine extends EventTarget {
     
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    // Si tienes un CUSTOM_BACKEND_HOST lo usa, si no, usa el host actual o GitHub Pages fallback
-    let backendHost = CUSTOM_BACKEND_HOST || window.location.host;
-    if (!CUSTOM_BACKEND_HOST && (window.location.hostname.endsWith('github.io') || window.location.hostname.endsWith('github.dev'))) {
+    // Determinar Host y Puerto (Prioridad: window.PRIVACHAT_* > CUSTOM_BACKEND_* > Auto-detect)
+    const targetHost = window.PRIVACHAT_BACKEND_HOST || CUSTOM_BACKEND_HOST;
+    const targetPort = window.PRIVACHAT_BACKEND_PORT || CUSTOM_BACKEND_PORT;
+    
+    let backendHost = window.location.host;
+    
+    if (targetHost) {
+      backendHost = targetPort ? `${targetHost}:${targetPort}` : targetHost;
+    } else if (window.location.hostname.endsWith('github.io') || window.location.hostname.endsWith('github.dev')) {
       backendHost = 'privachat-backend.onrender.com';
     }
     
