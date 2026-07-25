@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrivaChat - Mensajería Instantánea Ultra Privada</title>
+  <meta name="description" content="Una aplicación de chat ultra privada que funciona en tiempo real sin base de datos. Mensajes privados directos y salas por temas con opción de eliminación automática.">
+  
+  <!-- Google Fonts: Outfit e Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons para iconos modernos -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- PANTALLA DE ACCESO (WELCOME/LOGIN) -->
+  <div id="welcome-screen" class="screen active">
+    <div class="welcome-card">
+      <div class="welcome-header">
+        <div class="logo-container">
+          <i data-lucide="shield-alert" class="logo-icon animate-pulse"></i>
+        </div>
+        <h1 class="welcome-title">PrivaChat</h1>
+        <p class="welcome-subtitle">Chat seguro, cifrado en tránsito y 100% libre de bases de datos.</p>
+      </div>
+
+      <div class="avatar-setup">
+        <div class="avatar-preview-container">
+          <img id="avatar-preview" src="" alt="Vista previa del avatar">
+          <button type="button" id="btn-randomize-avatar" class="icon-button" title="Generar otro diseño">
+            <i data-lucide="rotate-cw"></i>
+          </button>
+        </div>
+        <span class="avatar-label">Tu Avatar Dinámico</span>
+      </div>
+
+      <form id="login-form" class="welcome-form" onsubmit="return false;">
+        <div class="input-group">
+          <label for="nickname-input">Elige tu Nickname único</label>
+          <div class="input-with-status">
+            <input type="text" id="nickname-input" placeholder="Ej. Luis, Maria, Neo..." required autocomplete="off" maxlength="15">
+            <span id="nickname-status-indicator" class="status-indicator-icon"></span>
+          </div>
+          <span id="nickname-feedback" class="feedback-text"></span>
+        </div>
+
+        <!-- Opciones de Privacidad y Caché -->
+        <div class="settings-box">
+          <h3 class="settings-title"><i data-lucide="settings"></i> Preferencias de Sesión</h3>
+          
+          <div class="toggle-group">
+            <div class="toggle-info">
+              <span class="toggle-label">Guardar historial localmente</span>
+              <span class="toggle-desc">Usa LocalStorage. Si se apaga, todo se borra al recargar la pestaña.</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="persistence-toggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-enter-chat" class="btn btn-primary btn-block" disabled>
+          <span>Ingresar a PrivaChat</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="welcome-footer">
+        <p><i data-lucide="lock" class="footer-icon"></i> Los mensajes privados solo viajan al destinatario en memoria volátil.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANTALLA PRINCIPAL DEL CHAT -->
+  <div id="chat-screen" class="screen">
+    
+    <!-- HEADER PARA MÓVILES -->
+    <header class="mobile-header">
+      <button id="mobile-menu-toggle" class="icon-button" title="Abrir Menú">
+        <i data-lucide="menu"></i>
+      </button>
+      <div class="mobile-logo">
+        <i data-lucide="shield" class="logo-accent"></i>
+        <span>PrivaChat</span>
+      </div>
+      <div class="connection-status-dot" id="mobile-connection-dot" title="Estado de conexión"></div>
+    </header>
+
+    <div class="chat-container">
+      
+      <!-- COLUMNA 1: BARRA LATERAL IZQUIERDA -->
+      <aside id="sidebar-left" class="sidebar">
+        <!-- Logo e Información de Conexión -->
+        <div class="sidebar-header">
+          <div class="logo">
+            <i data-lucide="shield-check" class="logo-accent"></i>
+            <span>PrivaChat</span>
+          </div>
+          <div id="connection-badge" class="connection-badge disconnected">
+            <span class="badge-dot"></span>
+            <span class="badge-label">Desconectado</span>
+          </div>
+        </div>
+
+        <!-- Perfil del Usuario Actual -->
+        <div class="user-profile-panel">
+          <img id="current-user-avatar" class="user-avatar" src="" alt="Mi avatar">
+          <div class="user-info">
+            <span id="current-user-name" class="user-name">Nickname</span>
+            <span class="user-role">En línea</span>
+          </div>
+          <button id="btn-logout" class="icon-button logout" title="Cerrar Sesión e Irse">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+
+        <!-- Lista de Salas Públicas -->
+        <div class="sidebar-section">
+          <div class="section-header">
+            <span>Salas de Discusión</span>
+            <button id="btn-add-room" class="icon-button small" title="Crear Sala">
+              <i data-lucide="plus"></i>
+            </button>
+          </div>
+          <div id="rooms-list" class="list-container">
+            <!-- Render dinámico de salas -->
+          </div>
+        </div>
+
+        <!-- Lista de Usuarios Conectados (DMs) -->
+        <div class="sidebar-section">
+          <div class="section-header">
+            <span>Mensajes Privados</span>
+            <span id="users-online-count" class="badge-count">0</span>
+          </div>
+          <div id="users-list" class="list-container">
+            <!-- Render dinámico de usuarios en línea -->
+          </div>
+        </div>
+
+        <!-- Configuración y Borrado de Caché en Sidebar -->
+        <div class="sidebar-footer">
+          <div class="footer-actions">
+            <button id="btn-toggle-persistence-sidebar" class="btn btn-secondary btn-sm" title="Cambiar modo de persistencia">
+              <i data-lucide="database"></i>
+              <span id="persistence-mode-label">Modo Efímero</span>
+            </button>
+            <button id="btn-clear-all" class="btn btn-danger btn-sm" title="Borrar todo el historial y salir">
+              <i data-lucide="trash-2"></i>
+              <span>Limpiar Todo</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- COLUMNA 2: ÁREA CENTRAL DE CHAT -->
+      <main class="chat-main">
+        <!-- Cabecera del Chat Activo -->
+        <div class="chat-header">
+          <div class="active-chat-info">
+            <h2 id="active-chat-title">#general</h2>
+            <p id="active-chat-desc" class="active-chat-desc">Sala general de conversación</p>
+          </div>
+          <div class="header-actions">
+            <button id="btn-toggle-details" class="icon-button" title="Detalles del Chat">
+              <i data-lucide="info"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Feed de Mensajes -->
+        <div id="messages-feed" class="messages-feed">
+          <!-- Mensajes dinámicos -->
+        </div>
+
+        <!-- Indicador de Escritura -->
+        <div id="typing-indicator" class="typing-indicator-container">
+          <span class="typing-text">Alguien está escribiendo...</span>
+        </div>
+
+        <!-- Barra de Entrada de Mensajes -->
+        <div class="chat-input-wrapper">
+          <!-- Vista previa de imagen antes de enviar -->
+          <div id="image-preview-bar" class="image-preview-bar">
+            <div class="preview-item">
+              <img id="attached-image-preview" src="" alt="Vista previa de adjunto">
+              <button id="btn-remove-attached-image" class="remove-btn" title="Quitar imagen">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sugerencias de mención con @ -->
+          <div id="mention-suggestions" class="mention-suggestions"></div>
+
+          <form id="chat-input-form" class="chat-input-form" onsubmit="return false;">
+            <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
+            <button type="button" id="btn-trigger-upload" class="icon-button attachment-btn" title="Adjuntar Imagen">
+              <i data-lucide="image"></i>
+            </button>
+            
+            <input type="text" id="message-input" placeholder="Escribe un mensaje aquí..." autocomplete="off">
+            
+            <button type="submit" id="btn-send-message" class="btn btn-primary btn-circle" title="Enviar Mensaje">
+              <i data-lucide="send"></i>
+            </button>
+          </form>
+        </div>
+      </main>
+
+      <!-- COLUMNA 3: DETALLES DEL CHAT (DERECHA) -->
+      <aside id="sidebar-details" class="sidebar-right active">
+        <div class="sidebar-right-header">
+          <h3>Detalles del Canal</h3>
+          <button id="btn-close-details" class="icon-button" title="Cerrar Detalles">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        
+        <div class="sidebar-right-content">
+          <div class="chat-details-card">
+            <div class="details-icon-container">
+              <i data-lucide="message-square" id="details-icon"></i>
+            </div>
+            <h4 id="details-title">#general</h4>
+            <p id="details-description">Sala general de conversación</p>
+          </div>
+
+          <div class="details-section">
+            <h5>Seguridad y Privacidad</h5>
+            <div class="security-status-box">
+              <div class="security-status-item">
+                <i data-lucide="shield-check" class="text-success"></i>
+                <div>
+                  <span class="status-title">Cifrado en Tránsito</span>
+                  <span class="status-desc">Los mensajes viajan mediante canales WebSockets encriptados.</span>
+                </div>
+              </div>
+              <div class="security-status-item">
+                <i data-lucide="database-zap" class="text-warning"></i>
+                <div>
+                  <span class="status-title">Sin Servidor de Datos</span>
+                  <span class="status-desc">Nada queda guardado en servidores remotos.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-section">
+            <h5>Acciones de Conversación</h5>
+            <div class="actions-list">
+              <button id="btn-clear-chat-history" class="btn btn-secondary btn-block text-left">
+                <i data-lucide="trash"></i>
+                <span>Vaciar este Chat</span>
+              </button>
+              <button id="btn-download-transcript" class="btn btn-secondary btn-block text-left">
+                <i data-lucide="download"></i>
+                <span>Descargar Historial</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- MODAL DE VISUALIZACIÓN DE IMÁGENES -->
+  <div id="image-viewer-modal" class="modal">
+    <span id="close-image-viewer" class="close-modal-btn">&times;</span>
+    <img class="modal-content-img" id="modal-img" src="" alt="Imagen ampliada">
+    <div id="image-viewer-caption" class="modal-caption"></div>
+    <a id="btn-download-modal-img" class="btn btn-primary modal-download-btn" download="privachat_img.png">
+      <i data-lucide="download"></i> Descargar Imagen
+    </a>
+  </div>
+
+  <!-- DIÁLOGO PARA CREAR NUEVA SALA PÚBLICA -->
+  <div id="create-room-modal" class="modal-dialog-overlay">
+    <div class="modal-dialog">
+      <div class="modal-dialog-header">
+        <h3>Crear Nueva Sala</h3>
+        <button id="btn-close-room-modal" class="icon-button" title="Cerrar"><i data-lucide="x"></i></button>
+      </div>
+      <form id="create-room-form" onsubmit="return false;">
+        <div class="input-group">
+          <label for="new-room-name">Nombre del Tema / Sala</label>
+          <input type="text" id="new-room-name" placeholder="Ej. música, películas, cripto..." required autocomplete="off" maxlength="15">
+        </div>
+        <div class="input-group">
+          <label for="new-room-desc">Descripción (Opcional)</label>
+          <input type="text" id="new-room-desc" placeholder="De qué se hablará en esta sala..." autocomplete="off" maxlength="50">
+        </div>
+        <div class="modal-dialog-actions">
+          <button type="button" id="btn-cancel-create-room" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Sala</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cargar scripts -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
