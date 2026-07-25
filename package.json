@@ -1,0 +1,17 @@
+{
+  "name": "privachat",
+  "version": "1.0.0",
+  "description": "A completely private, no-database chat app using WebSockets",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "predeploy": "npm install gh-pages --no-save",
+    "deploy": "gh-pages -d public"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}

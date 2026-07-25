@@ -1,0 +1,8 @@
+creame un chat donde los mensajes sean totalmente privados
+que tenga salas grupales por temas
+que tengas salas privadas para las personas hablar privadamente
+que se puedan subir imagenes 
+que puedes usar un nicknam, pero que este nose pueda repetir, para que no se confundan
+que sea responsive para que se vea bien en telefono o tablets
+si puedes evita usar base de datos, usa localstorage pero que se pueda limpiar  facilmente
+noquiero que el sitio guarde nada que todo sea meramente cache del nvegador, si actualiza se pierde todo
