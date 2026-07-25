@@ -244,32 +244,42 @@ export class ChatEngine extends EventTarget {
   }
 
   // Enviar mensaje a sala pública
-  async sendGroupMessage(roomId, content, file = null) {
+  async sendGroupMessage(roomId, content, imageFile = null, videoFile = null) {
     let imageData = null;
-    if (file) {
-      imageData = await this.fileToBase64(file);
+    let videoData = null;
+    if (imageFile) {
+      imageData = typeof imageFile === 'string' ? imageFile : await this.fileToBase64(imageFile);
+    }
+    if (videoFile) {
+      videoData = typeof videoFile === 'string' ? videoFile : await this.fileToBase64(videoFile);
     }
 
     this.sendRaw({
       type: 'group_message',
       roomId,
       content,
-      image: imageData
+      image: imageData,
+      video: videoData
     });
   }
 
   // Enviar mensaje privado a un usuario
-  async sendPrivateMessage(recipient, content, file = null) {
+  async sendPrivateMessage(recipient, content, imageFile = null, videoFile = null) {
     let imageData = null;
-    if (file) {
-      imageData = await this.fileToBase64(file);
+    let videoData = null;
+    if (imageFile) {
+      imageData = typeof imageFile === 'string' ? imageFile : await this.fileToBase64(imageFile);
+    }
+    if (videoFile) {
+      videoData = typeof videoFile === 'string' ? videoFile : await this.fileToBase64(videoFile);
     }
 
     this.sendRaw({
       type: 'private_message',
       recipient,
       content,
-      image: imageData
+      image: imageData,
+      video: videoData
     });
   }
 

@@ -11,7 +11,12 @@ function initLucide() {
 // INICIALIZACIÓN DE VARIABLES DE ESTADO LOCAL
 const engine = new ChatEngine();
 let activeChat = { id: 'general', type: 'group' };
-let selectedFile = null;
+let selectedFile = null; // Base64 de foto comprimida
+let selectedVideoData = null; // Base64 de video <= 5s
+let cameraStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingTimerInterval = null;
 let currentAvatarDataUrl = '';
 let checkNicknameTimeout = null;
 let isTypingState = false;
@@ -65,12 +70,23 @@ const DOM = {
   // Input de Mensajes
   imagePreviewBar: document.getElementById('image-preview-bar'),
   attachedImagePreview: document.getElementById('attached-image-preview'),
+  attachedVideoPreview: document.getElementById('attached-video-preview'),
   btnRemoveAttachedImage: document.getElementById('btn-remove-attached-image'),
   chatInputForm: document.getElementById('chat-input-form'),
   imageUploadInput: document.getElementById('image-upload-input'),
   btnTriggerUpload: document.getElementById('btn-trigger-upload'),
+  btnTriggerCamera: document.getElementById('btn-trigger-camera'),
   messageInput: document.getElementById('message-input'),
   btnSendMessage: document.getElementById('btn-send-message'),
+  
+  // Modal de Cámara y Grabación
+  cameraModal: document.getElementById('camera-modal'),
+  cameraFeed: document.getElementById('camera-feed'),
+  btnCloseCamera: document.getElementById('btn-close-camera'),
+  btnSnapPhoto: document.getElementById('btn-snap-photo'),
+  btnRecordVideo: document.getElementById('btn-record-video'),
+  recordingProgressBar: document.getElementById('recording-progress-bar'),
+  recordingTimerBadge: document.getElementById('recording-timer-badge'),
   
   // Sidebar Derecha (Detalles)
   sidebarDetails: document.getElementById('sidebar-details'),
@@ -500,9 +516,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Enviar Mensaje
   DOM.chatInputForm.addEventListener('submit', async () => {
     const text = DOM.messageInput.value.trim();
-    const file = selectedFile;
+    const image = selectedFile;
+    const video = selectedVideoData;
     
-    if (!text && !file) return;
+    if (!text && !image && !video) return;
     
     // Limpiar input y barra de previsualización inmediatamente (optimismo visual)
     DOM.messageInput.value = '';
@@ -513,9 +530,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     try {
       if (activeChat.type === 'group') {
-        await engine.sendGroupMessage(activeChat.id, text, file);
+        await engine.sendGroupMessage(activeChat.id, text, image, video);
       } else {
-        await engine.sendPrivateMessage(activeChat.id, text, file);
+        await engine.sendPrivateMessage(activeChat.id, text, image, video);
       }
     } catch (e) {
       alert(`Error al enviar mensaje: ${e.message}`);
@@ -583,35 +600,173 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Adjuntar imagen botones
+  // Adjuntar imagen o video desde archivo
   DOM.btnTriggerUpload.addEventListener('click', () => {
     DOM.imageUploadInput.click();
   });
 
-  DOM.imageUploadInput.addEventListener('change', (e) => {
+  DOM.imageUploadInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        alert('Solo se admiten archivos de imagen');
-        return;
-      }
-      
-      // Validar peso máximo de 3MB para evitar saturar el WebSocket
-      if (file.size > 3 * 1024 * 1024) {
-        alert('La imagen supera el límite de 3MB de seguridad.');
-        return;
-      }
+    if (!file) return;
 
-      selectedFile = file;
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        DOM.attachedImagePreview.src = e.target.result;
+    resetImageAttachmentUI();
+
+    if (file.type.startsWith('image/')) {
+      try {
+        const compressedBase64 = await compressImage(file, 1000, 1000, 0.7);
+        selectedFile = compressedBase64;
+        DOM.attachedImagePreview.src = compressedBase64;
+        DOM.attachedImagePreview.style.display = 'block';
+        DOM.attachedVideoPreview.style.display = 'none';
         DOM.imagePreviewBar.classList.add('active');
+      } catch (err) {
+        alert('Error al procesar la imagen.');
+      }
+    } else if (file.type.startsWith('video/')) {
+      // Validar duración máx 5.5s
+      const videoEl = document.createElement('video');
+      videoEl.preload = 'metadata';
+      videoEl.src = URL.createObjectURL(file);
+      videoEl.onloadedmetadata = () => {
+        URL.revokeObjectURL(videoEl.src);
+        if (videoEl.duration > 5.5) {
+          alert('El video debe ser un clip corto de máximo 5 segundos.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          selectedVideoData = event.target.result;
+          DOM.attachedVideoPreview.src = selectedVideoData;
+          DOM.attachedVideoPreview.style.display = 'block';
+          DOM.attachedImagePreview.style.display = 'none';
+          DOM.imagePreviewBar.classList.add('active');
+        };
+        reader.readAsDataURL(file);
       };
-      reader.readAsDataURL(file);
+    } else {
+      alert('Tipo de archivo no soportado. Selecciona una foto o un video corto.');
     }
   });
+
+  // Abrir modal de cámara (Foto o Video de 5s)
+  if (DOM.btnTriggerCamera) {
+    DOM.btnTriggerCamera.addEventListener('click', async () => {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: true
+        });
+        DOM.cameraFeed.srcObject = cameraStream;
+        DOM.cameraModal.classList.add('active');
+        DOM.recordingProgressBar.style.width = '0%';
+        DOM.recordingTimerBadge.innerText = '00:05';
+      } catch (err) {
+        alert('No se pudo acceder a la cámara o micrófono: ' + err.message);
+      }
+    });
+  }
+
+  const closeCameraModal = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    if (recordingTimerInterval) clearInterval(recordingTimerInterval);
+    DOM.cameraModal.classList.remove('active');
+    DOM.recordingProgressBar.style.width = '0%';
+    DOM.btnRecordVideo.disabled = false;
+    DOM.btnSnapPhoto.disabled = false;
+  };
+
+  if (DOM.btnCloseCamera) DOM.btnCloseCamera.addEventListener('click', closeCameraModal);
+
+  // Capturar Foto instantánea desde la cámara
+  if (DOM.btnSnapPhoto) {
+    DOM.btnSnapPhoto.addEventListener('click', () => {
+      if (!cameraStream) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = DOM.cameraFeed.videoWidth || 640;
+      canvas.height = DOM.cameraFeed.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(DOM.cameraFeed, 0, 0, canvas.width, canvas.height);
+      
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      resetImageAttachmentUI();
+      selectedFile = photoDataUrl;
+      DOM.attachedImagePreview.src = photoDataUrl;
+      DOM.attachedImagePreview.style.display = 'block';
+      DOM.attachedVideoPreview.style.display = 'none';
+      DOM.imagePreviewBar.classList.add('active');
+
+      closeCameraModal();
+    });
+  }
+
+  // Grabar Video de 5s desde la cámara
+  if (DOM.btnRecordVideo) {
+    DOM.btnRecordVideo.addEventListener('click', () => {
+      if (!cameraStream || (mediaRecorder && mediaRecorder.state === 'recording')) return;
+
+      recordedChunks = [];
+      let mimeType = 'video/webm;codecs=vp8,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/mp4';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = '';
+        }
+      }
+
+      const options = mimeType ? { mimeType } : undefined;
+      mediaRecorder = new MediaRecorder(cameraStream, options);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          resetImageAttachmentUI();
+          selectedVideoData = event.target.result;
+          DOM.attachedVideoPreview.src = selectedVideoData;
+          DOM.attachedVideoPreview.style.display = 'block';
+          DOM.attachedImagePreview.style.display = 'none';
+          DOM.imagePreviewBar.classList.add('active');
+        };
+        reader.readAsDataURL(blob);
+        closeCameraModal();
+      };
+
+      mediaRecorder.start();
+      DOM.btnRecordVideo.disabled = true;
+      DOM.btnSnapPhoto.disabled = true;
+
+      const startTime = Date.now();
+      DOM.recordingProgressBar.style.width = '0%';
+      DOM.recordingTimerBadge.innerText = '00:05';
+
+      recordingTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min((elapsed / 5000) * 100, 100);
+        DOM.recordingProgressBar.style.width = `${progress}%`;
+        
+        const secondsRemaining = Math.max(0, Math.ceil((5000 - elapsed) / 1000));
+        DOM.recordingTimerBadge.innerText = `00:0${secondsRemaining}`;
+
+        if (elapsed >= 5000) {
+          clearInterval(recordingTimerInterval);
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+        }
+      }, 100);
+    });
+  }
 
   DOM.btnRemoveAttachedImage.addEventListener('click', () => {
     resetImageAttachmentUI();
@@ -933,6 +1088,7 @@ function renderMessages() {
         <div class="message-content-bubble">
           <div class="message-content">${formattedContent}</div>
           ${msg.image ? `<img class="message-attachment-img" src="${msg.image}" alt="Imagen adjunta">` : ''}
+          ${msg.video ? `<video class="message-attachment-video" src="${msg.video}" controls playsinline></video>` : ''}
         </div>
       </div>
     `;
@@ -968,12 +1124,52 @@ function scrollToBottom() {
   DOM.messagesFeed.scrollTop = DOM.messagesFeed.scrollHeight;
 }
 
-// Resetear los inputs e UI de adjuntar imagen
+// Resetear los inputs e UI de adjuntar imagen o video
 function resetImageAttachmentUI() {
   selectedFile = null;
+  selectedVideoData = null;
   DOM.imageUploadInput.value = '';
   DOM.attachedImagePreview.src = '';
+  DOM.attachedVideoPreview.src = '';
+  DOM.attachedImagePreview.style.display = 'none';
+  DOM.attachedVideoPreview.style.display = 'none';
   DOM.imagePreviewBar.classList.remove('active');
+}
+
+// Función para comprimir fotos del cliente vía HTML5 Canvas
+function compressImage(file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
 }
 
 // Actualizar el panel lateral de detalles de chat (derecha)

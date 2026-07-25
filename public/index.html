@@ -202,11 +202,12 @@
 
         <!-- Barra de Entrada de Mensajes -->
         <div class="chat-input-wrapper">
-          <!-- Vista previa de imagen antes de enviar -->
+          <!-- Vista previa de imagen o video antes de enviar -->
           <div id="image-preview-bar" class="image-preview-bar">
             <div class="preview-item">
-              <img id="attached-image-preview" src="" alt="Vista previa de adjunto">
-              <button id="btn-remove-attached-image" class="remove-btn" title="Quitar imagen">
+              <img id="attached-image-preview" src="" alt="Vista previa de foto" style="display: none;">
+              <video id="attached-video-preview" src="" controls style="display: none; max-width: 140px; max-height: 85px; border-radius: 8px; object-fit: cover;"></video>
+              <button id="btn-remove-attached-image" class="remove-btn" title="Quitar adjunto">
                 <i data-lucide="x"></i>
               </button>
             </div>
@@ -216,9 +217,12 @@
           <div id="mention-suggestions" class="mention-suggestions"></div>
 
           <form id="chat-input-form" class="chat-input-form" onsubmit="return false;">
-            <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
-            <button type="button" id="btn-trigger-upload" class="icon-button attachment-btn" title="Adjuntar Imagen">
+            <input type="file" id="image-upload-input" accept="image/*,video/*" style="display: none;">
+            <button type="button" id="btn-trigger-upload" class="icon-button attachment-btn" title="Adjuntar Imagen o Video">
               <i data-lucide="image"></i>
+            </button>
+            <button type="button" id="btn-trigger-camera" class="icon-button attachment-btn" title="Tomar Foto o Video (5s)">
+              <i data-lucide="camera"></i>
             </button>
 
             <input type="text" id="message-input" placeholder="Escribe un mensaje aquí..." autocomplete="off">
@@ -320,6 +324,29 @@
           <button type="submit" class="btn btn-primary">Crear Sala</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE CÁMARA Y GRABACIÓN (FOTO / VIDEO 5S) -->
+  <div id="camera-modal" class="modal-dialog-overlay">
+    <div class="modal-dialog camera-dialog">
+      <div class="modal-dialog-header">
+        <h3><i data-lucide="camera" class="logo-accent"></i> Cámara PrivaChat</h3>
+        <button type="button" id="btn-close-camera" class="icon-button" title="Cerrar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="camera-preview-container">
+        <video id="camera-feed" autoplay playsinline muted></video>
+        <div id="recording-progress-bar" class="recording-progress-bar"></div>
+        <span id="recording-timer-badge" class="recording-timer-badge">00:05</span>
+      </div>
+      <div class="camera-modal-actions">
+        <button type="button" id="btn-snap-photo" class="btn btn-secondary">
+          <i data-lucide="aperture"></i> Capturar Foto
+        </button>
+        <button type="button" id="btn-record-video" class="btn btn-primary btn-record">
+          <i data-lucide="video"></i> Grabar Video (5s)
+        </button>
+      </div>
     </div>
   </div>
 

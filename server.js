@@ -152,8 +152,8 @@ wss.on('connection', (ws) => {
             break;
           }
 
-          const { roomId, content, image } = message;
-          if (!roomId || (!content && !image)) break;
+          const { roomId, content, image, video } = message;
+          if (!roomId || (!content && !image && !video)) break;
 
           const senderData = connectedUsers.get(userNickname);
 
@@ -166,6 +166,7 @@ wss.on('connection', (ws) => {
               avatar: senderData.avatar,
               content: content || '',
               image: image || null,
+              video: video || null,
               timestamp: Date.now()
             }
           });
@@ -178,8 +179,8 @@ wss.on('connection', (ws) => {
             break;
           }
 
-          const { recipient, content, image } = message;
-          if (!recipient || (!content && !image)) break;
+          const { recipient, content, image, video } = message;
+          if (!recipient || (!content && !image && !video)) break;
 
           const senderData = connectedUsers.get(userNickname);
           const recipientData = connectedUsers.get(recipient);
@@ -191,6 +192,7 @@ wss.on('connection', (ws) => {
             avatar: senderData.avatar,
             content: content || '',
             image: image || null,
+            video: video || null,
             timestamp: Date.now()
           };
 
