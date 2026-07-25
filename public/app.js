@@ -623,13 +623,19 @@ window.addEventListener('DOMContentLoaded', () => {
         alert('Error al procesar la imagen.');
       }
     } else if (file.type.startsWith('video/')) {
-      // Validar duración máx 5.5s
+      // Validar duración máx 5.5s con fallback seguro para Safari
       const videoEl = document.createElement('video');
       videoEl.preload = 'metadata';
-      videoEl.src = URL.createObjectURL(file);
-      videoEl.onloadedmetadata = () => {
-        URL.revokeObjectURL(videoEl.src);
-        if (videoEl.duration > 5.5) {
+      const objUrl = URL.createObjectURL(file);
+      videoEl.src = objUrl;
+
+      let isHandled = false;
+      const processVideoFile = (isValid) => {
+        if (isHandled) return;
+        isHandled = true;
+        URL.revokeObjectURL(objUrl);
+
+        if (!isValid) {
           alert('El video debe ser un clip corto de máximo 5 segundos.');
           return;
         }
@@ -644,6 +650,10 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsDataURL(file);
       };
+
+      videoEl.onloadedmetadata = () => processVideoFile(videoEl.duration <= 5.5);
+      videoEl.onerror = () => processVideoFile(true); // permitir si no se puede leer la duración
+      setTimeout(() => processVideoFile(true), 1500); // 1.5s fallback
     } else {
       alert('Tipo de archivo no soportado. Selecciona una foto o un video corto.');
     }
@@ -653,17 +663,28 @@ window.addEventListener('DOMContentLoaded', () => {
   if (DOM.btnTriggerCamera) {
     DOM.btnTriggerCamera.addEventListener('click', async () => {
       try {
+        // Intentar con audio primero
         cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
           audio: true
         });
-        DOM.cameraFeed.srcObject = cameraStream;
-        DOM.cameraModal.classList.add('active');
-        DOM.recordingProgressBar.style.width = '0%';
-        DOM.recordingTimerBadge.innerText = '00:05';
       } catch (err) {
-        alert('No se pudo acceder a la cámara o micrófono: ' + err.message);
+        // Fallback a solo video si el micrófono no está permitido o disponible
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: false
+          });
+        } catch (err2) {
+          alert('No se pudo acceder a la cámara: ' + err2.message);
+          return;
+        }
       }
+
+      DOM.cameraFeed.srcObject = cameraStream;
+      DOM.cameraModal.classList.add('active');
+      DOM.recordingProgressBar.style.width = '0%';
+      DOM.recordingTimerBadge.innerText = '00:05';
     });
   }
 
@@ -712,23 +733,47 @@ window.addEventListener('DOMContentLoaded', () => {
       if (!cameraStream || (mediaRecorder && mediaRecorder.state === 'recording')) return;
 
       recordedChunks = [];
-      let mimeType = 'video/webm;codecs=vp8,opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/mp4';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = '';
+      
+      // Probar tipos de codificación soportados (soporte multiplataforma iOS/Android/Desktop)
+      let mimeType = '';
+      const candidateTypes = [
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+        for (const type of candidateTypes) {
+          if (MediaRecorder.isTypeSupported(type)) {
+            mimeType = type;
+            break;
+          }
         }
       }
 
       const options = mimeType ? { mimeType } : undefined;
-      mediaRecorder = new MediaRecorder(cameraStream, options);
+      
+      try {
+        mediaRecorder = new MediaRecorder(cameraStream, options);
+      } catch (recErr) {
+        // Si falla con la opción personalizada, intentar sin opciones (por defecto del navegador)
+        try {
+          mediaRecorder = new MediaRecorder(cameraStream);
+        } catch (recErr2) {
+          alert('Tu navegador no soporta grabación de video: ' + recErr2.message);
+          return;
+        }
+      }
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) recordedChunks.push(e.data);
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+        const finalType = (mediaRecorder && mediaRecorder.mimeType) || mimeType || 'video/mp4';
+        const blob = new Blob(recordedChunks, { type: finalType });
         const reader = new FileReader();
         reader.onload = (event) => {
           resetImageAttachmentUI();
@@ -742,7 +787,7 @@ window.addEventListener('DOMContentLoaded', () => {
         closeCameraModal();
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(1000); // Entregar datos cada segundo
       DOM.btnRecordVideo.disabled = true;
       DOM.btnSnapPhoto.disabled = true;
 
