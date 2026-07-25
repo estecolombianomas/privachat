@@ -213,16 +213,22 @@
             </div>
           </div>
 
-          <!-- Sugerencias de mención con @ -->
-          <div id="mention-suggestions" class="mention-suggestions"></div>
+          <!-- Menú Flotante de Opciones de Adjunto -->
+          <div id="attachment-menu" class="attachment-menu">
+            <button type="button" class="attachment-menu-item" id="btn-option-camera">
+              <i data-lucide="camera"></i>
+              <span>Cámara (Foto / Video 5s)</span>
+            </button>
+            <button type="button" class="attachment-menu-item" id="btn-option-gallery">
+              <i data-lucide="image"></i>
+              <span>Galería / Archivos</span>
+            </button>
+          </div>
 
           <form id="chat-input-form" class="chat-input-form" onsubmit="return false;">
             <input type="file" id="image-upload-input" accept="image/*,video/*" style="display: none;">
-            <button type="button" id="btn-trigger-upload" class="icon-button attachment-btn" title="Adjuntar Imagen o Video">
-              <i data-lucide="image"></i>
-            </button>
-            <button type="button" id="btn-trigger-camera" class="icon-button attachment-btn" title="Tomar Foto o Video (5s)">
-              <i data-lucide="camera"></i>
+            <button type="button" id="btn-trigger-attachment" class="icon-button attachment-btn" title="Adjuntar Multimedia">
+              <i data-lucide="paperclip"></i>
             </button>
 
             <input type="text" id="message-input" placeholder="Escribe un mensaje aquí..." autocomplete="off">

@@ -75,8 +75,10 @@ const DOM = {
   btnRemoveAttachedImage: document.getElementById('btn-remove-attached-image'),
   chatInputForm: document.getElementById('chat-input-form'),
   imageUploadInput: document.getElementById('image-upload-input'),
-  btnTriggerUpload: document.getElementById('btn-trigger-upload'),
-  btnTriggerCamera: document.getElementById('btn-trigger-camera'),
+  btnTriggerAttachment: document.getElementById('btn-trigger-attachment'),
+  attachmentMenu: document.getElementById('attachment-menu'),
+  btnOptionCamera: document.getElementById('btn-option-camera'),
+  btnOptionGallery: document.getElementById('btn-option-gallery'),
   messageInput: document.getElementById('message-input'),
   btnSendMessage: document.getElementById('btn-send-message'),
   
@@ -602,10 +604,43 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Adjuntar imagen o video desde archivo
-  DOM.btnTriggerUpload.addEventListener('click', () => {
-    DOM.imageUploadInput.click();
+  // Abrir / Cerrar Menú de Adjuntos Flotante
+  if (DOM.btnTriggerAttachment) {
+    DOM.btnTriggerAttachment.addEventListener('click', (e) => {
+      e.stopPropagation();
+      DOM.attachmentMenu.classList.toggle('active');
+    });
+  }
+
+  // Cerrar Menú de Adjuntos al hacer clic en cualquier otra parte
+  document.addEventListener('click', (e) => {
+    if (DOM.attachmentMenu && DOM.attachmentMenu.classList.contains('active')) {
+      if (!DOM.attachmentMenu.contains(e.target) && e.target !== DOM.btnTriggerAttachment) {
+        DOM.attachmentMenu.classList.remove('active');
+      }
+    }
   });
+
+  // Opción 1: Abrir Galería / Archivos
+  if (DOM.btnOptionGallery) {
+    DOM.btnOptionGallery.addEventListener('click', () => {
+      DOM.attachmentMenu.classList.remove('active');
+      DOM.imageUploadInput.click();
+    });
+  }
+
+  // Opción 2: Abrir Cámara Modal
+  if (DOM.btnOptionCamera) {
+    DOM.btnOptionCamera.addEventListener('click', async () => {
+      DOM.attachmentMenu.classList.remove('active');
+      const ok = await startCameraStream(currentFacingMode);
+      if (ok) {
+        DOM.cameraModal.classList.add('active');
+        DOM.recordingProgressBar.style.width = '0%';
+        DOM.recordingTimerBadge.innerText = '00:05';
+      }
+    });
+  }
 
   DOM.imageUploadInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -703,17 +738,7 @@ window.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // Abrir modal de cámara (Foto o Video de 5s)
-  if (DOM.btnTriggerCamera) {
-    DOM.btnTriggerCamera.addEventListener('click', async () => {
-      const ok = await startCameraStream(currentFacingMode);
-      if (ok) {
-        DOM.cameraModal.classList.add('active');
-        DOM.recordingProgressBar.style.width = '0%';
-        DOM.recordingTimerBadge.innerText = '00:05';
-      }
-    });
-  }
+
 
   // Cambiar cámara entre Frontal (user) y Trasera (environment)
   if (DOM.btnSwitchCamera) {
