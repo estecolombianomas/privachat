@@ -11,7 +11,7 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 50 * 1024 * 1024 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3333;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Servir archivos estáticos del frontend
