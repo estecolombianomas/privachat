@@ -314,8 +314,12 @@ export class ChatEngine extends EventTarget {
             this.rooms = data.rooms;
             this.nickname = data.nickname;
             this.avatar = data.avatar;
+            if (data.onlineUsers) {
+              this.onlineUsers = data.onlineUsers;
+            }
             this.saveSettings();
             this.dispatchEvent(new CustomEvent('joined', { detail: data }));
+            this.dispatchEvent(new CustomEvent('users_updated'));
           } else {
             this.nickname = null;
             this.avatar = null;

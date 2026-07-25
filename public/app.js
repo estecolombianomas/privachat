@@ -328,17 +328,22 @@ window.addEventListener('DOMContentLoaded', () => {
     selectedSuggestionIndex = 0;
     
     DOM.mentionSuggestions.innerHTML = '';
-    matches.forEach((user, idx) => {
+    matches.forEach((itemData, idx) => {
       const item = document.createElement('div');
       item.className = `suggestion-item ${idx === 0 ? 'active' : ''}`;
+      
+      const avatarHtml = itemData.avatar 
+        ? `<img class="suggestion-avatar" src="${itemData.avatar}" alt="${itemData.nickname}">`
+        : `<div class="suggestion-avatar-placeholder" style="width: 24px; height: 24px; border-radius: 6px; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--accent-color); font-weight: bold; font-size: 0.8rem;">@</div>`;
+      
       item.innerHTML = `
-        <img class="suggestion-avatar" src="${user.avatar}" alt="${user.nickname}">
-        <span class="suggestion-nickname">@${user.nickname}</span>
+        ${avatarHtml}
+        <span class="suggestion-nickname">@${itemData.nickname}</span>
       `;
       
       const handleSelect = (e) => {
         e.preventDefault();
-        selectSuggestion(user.nickname);
+        selectSuggestion(itemData.nickname);
       };
 
       item.addEventListener('mousedown', handleSelect);
@@ -559,7 +564,7 @@ window.addEventListener('DOMContentLoaded', () => {
       sendTypingStatus(false);
     }, 2500); // Detener estado si no escribe en 2.5 seg
 
-    // Autocompletado con @ para los integrantes en línea
+    // Autocompletado con @ para los integrantes en línea, salas y @todos
     const text = DOM.messageInput.value;
     const cursor = DOM.messageInput.selectionStart || text.length;
     const textBeforeCursor = text.slice(0, cursor);
@@ -571,11 +576,29 @@ window.addEventListener('DOMContentLoaded', () => {
       if (!/\s/.test(textAfterAt)) {
         const query = textAfterAt.toLowerCase();
         
-        // Filtrar integrantes conectados excepto yo
-        const matches = engine.onlineUsers.filter(u => 
-          u.nickname !== engine.nickname && 
-          u.nickname.toLowerCase().startsWith(query)
-        );
+        const targets = [];
+        
+        // Integrantes en línea (excepto yo)
+        if (engine.onlineUsers && engine.onlineUsers.length > 0) {
+          engine.onlineUsers.forEach(u => {
+            if (u.nickname !== engine.nickname) {
+              targets.push({ nickname: u.nickname, avatar: u.avatar });
+            }
+          });
+        }
+
+        // Etiqueta global @todos
+        targets.push({ nickname: 'todos', avatar: null });
+
+        // Salas disponibles
+        if (engine.rooms) {
+          engine.rooms.forEach(r => {
+            targets.push({ nickname: r.id, avatar: null });
+          });
+        }
+
+        // Filtrar sugerencias coincidentes
+        const matches = targets.filter(t => t.nickname.toLowerCase().startsWith(query));
         
         if (matches.length > 0) {
           showSuggestions(matches);

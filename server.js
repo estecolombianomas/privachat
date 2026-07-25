@@ -128,13 +128,14 @@ wss.on('connection', (ws) => {
             joinedAt: Date.now()
           });
 
-          // Confirmar éxito al cliente y enviar salas iniciales
+          // Confirmar éxito al cliente y enviar salas iniciales y usuarios conectados
           ws.send(JSON.stringify({
             type: 'join_result',
             success: true,
             nickname: userNickname,
             avatar: avatar,
-            rooms: defaultRooms
+            rooms: defaultRooms,
+            onlineUsers: getActiveUsersList()
           }));
 
           // Notificar a todos la unión del nuevo usuario y lista actualizada
