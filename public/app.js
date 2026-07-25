@@ -772,12 +772,17 @@ window.addEventListener('DOMContentLoaded', () => {
       };
 
       mediaRecorder.onstop = () => {
-        const finalType = (mediaRecorder && mediaRecorder.mimeType) || mimeType || 'video/mp4';
-        const blob = new Blob(recordedChunks, { type: finalType });
+        let rawType = (mediaRecorder && mediaRecorder.mimeType) || mimeType || 'video/mp4';
+        const cleanType = rawType.split(';')[0].trim(); // Extraer 'video/webm' o 'video/mp4' sin códecs extra
+        const blob = new Blob(recordedChunks, { type: cleanType });
         const reader = new FileReader();
         reader.onload = (event) => {
           resetImageAttachmentUI();
-          selectedVideoData = event.target.result;
+          let dataUrl = event.target.result;
+          if (dataUrl.includes(';codecs=')) {
+            dataUrl = dataUrl.replace(/;codecs=[^;,]+/, '');
+          }
+          selectedVideoData = dataUrl;
           DOM.attachedVideoPreview.src = selectedVideoData;
           DOM.attachedVideoPreview.style.display = 'block';
           DOM.attachedImagePreview.style.display = 'none';
@@ -787,7 +792,7 @@ window.addEventListener('DOMContentLoaded', () => {
         closeCameraModal();
       };
 
-      mediaRecorder.start(1000); // Entregar datos cada segundo
+      mediaRecorder.start(250); // Entregar datos cada 250ms
       DOM.btnRecordVideo.disabled = true;
       DOM.btnSnapPhoto.disabled = true;
 
@@ -806,7 +811,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (elapsed >= 5000) {
           clearInterval(recordingTimerInterval);
           if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
+            try {
+              mediaRecorder.requestData();
+            } catch (e) {}
+            setTimeout(() => {
+              if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+              }
+            }, 80);
           }
         }
       }, 100);
