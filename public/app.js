@@ -14,6 +14,7 @@ let activeChat = { id: 'general', type: 'group' };
 let selectedFile = null; // Base64 de foto comprimida
 let selectedVideoData = null; // Base64 de video <= 5s
 let cameraStream = null;
+let currentFacingMode = 'user'; // 'user' (frontal) o 'environment' (trasera)
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordingTimerInterval = null;
@@ -83,6 +84,7 @@ const DOM = {
   cameraModal: document.getElementById('camera-modal'),
   cameraFeed: document.getElementById('camera-feed'),
   btnCloseCamera: document.getElementById('btn-close-camera'),
+  btnSwitchCamera: document.getElementById('btn-switch-camera'),
   btnSnapPhoto: document.getElementById('btn-snap-photo'),
   btnRecordVideo: document.getElementById('btn-record-video'),
   recordingProgressBar: document.getElementById('recording-progress-bar'),
@@ -659,32 +661,70 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Función para iniciar/cambiar flujo de cámara (Frontal vs Trasera)
+  async function startCameraStream(facingMode = 'user') {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+
+    const videoConstraints = {
+      facingMode: facingMode,
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    };
+
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: true
+      });
+    } catch (err) {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false
+        });
+      } catch (err2) {
+        try {
+          // Fallback sin restricción estricta de facingMode
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+        } catch (err3) {
+          alert('No se pudo acceder a la cámara seleccionada: ' + err3.message);
+          return false;
+        }
+      }
+    }
+
+    DOM.cameraFeed.srcObject = cameraStream;
+    return true;
+  }
+
   // Abrir modal de cámara (Foto o Video de 5s)
   if (DOM.btnTriggerCamera) {
     DOM.btnTriggerCamera.addEventListener('click', async () => {
-      try {
-        // Intentar con audio primero
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: true
-        });
-      } catch (err) {
-        // Fallback a solo video si el micrófono no está permitido o disponible
-        try {
-          cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-            audio: false
-          });
-        } catch (err2) {
-          alert('No se pudo acceder a la cámara: ' + err2.message);
-          return;
-        }
+      const ok = await startCameraStream(currentFacingMode);
+      if (ok) {
+        DOM.cameraModal.classList.add('active');
+        DOM.recordingProgressBar.style.width = '0%';
+        DOM.recordingTimerBadge.innerText = '00:05';
       }
+    });
+  }
 
-      DOM.cameraFeed.srcObject = cameraStream;
-      DOM.cameraModal.classList.add('active');
-      DOM.recordingProgressBar.style.width = '0%';
-      DOM.recordingTimerBadge.innerText = '00:05';
+  // Cambiar cámara entre Frontal (user) y Trasera (environment)
+  if (DOM.btnSwitchCamera) {
+    DOM.btnSwitchCamera.addEventListener('click', async () => {
+      currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      const icon = DOM.btnSwitchCamera.querySelector('i');
+      if (icon) icon.classList.add('animate-spin');
+      await startCameraStream(currentFacingMode);
+      setTimeout(() => {
+        if (icon) icon.classList.remove('animate-spin');
+      }, 400);
     });
   }
 

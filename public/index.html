@@ -332,7 +332,12 @@
     <div class="modal-dialog camera-dialog">
       <div class="modal-dialog-header">
         <h3><i data-lucide="camera" class="logo-accent"></i> Cámara PrivaChat</h3>
-        <button type="button" id="btn-close-camera" class="icon-button" title="Cerrar"><i data-lucide="x"></i></button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" id="btn-switch-camera" class="icon-button" title="Cambiar Cámara (Frontal / Trasera)">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+          <button type="button" id="btn-close-camera" class="icon-button" title="Cerrar"><i data-lucide="x"></i></button>
+        </div>
       </div>
       <div class="camera-preview-container">
         <video id="camera-feed" autoplay playsinline muted></video>
